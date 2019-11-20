@@ -7,7 +7,7 @@ Refer to Locust documentation on how to set up a handler for AWS Lambda
 ## Usage
 
 ```sh
-zip ./src.zip ./src
+zip -r ./src.zip ./src
 terraform init
 terraform plan
 terraform apply
