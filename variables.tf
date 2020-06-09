@@ -2,10 +2,6 @@ variable "private_subnet_ids" {
   description = "List of IDs of private subnets in the VPC"
 }
 
-variable "public_subnet_ids" {
-  description = "List of IDs of public subnets in the VPC"
-}
-
 variable "vpc_id" {
   description = "ID of the VPC to create infra in"
 }

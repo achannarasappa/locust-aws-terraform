@@ -21,23 +21,15 @@ resource "aws_iam_role" "locust_job" {
 EOF
 }
 
+# Grant permissions to invoke Lambda functions
 resource "aws_iam_role_policy_attachment" "lambda-role-policy-attach" {
-  role       = "${aws_iam_role.locust_job.name}"
+  role       = aws_iam_role.locust_job.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaRole"
 }
 
-resource "aws_iam_role_policy_attachment" "lambda-execute-policy-attach" {
-  role       = "${aws_iam_role.locust_job.name}"
-  policy_arn = "arn:aws:iam::aws:policy/AWSLambdaExecute"
-}
-
-resource "aws_iam_role_policy_attachment" "lambda-basic-execution-policy-attach" {
-  role       = "${aws_iam_role.locust_job.name}"
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
+# Grant permissions to write logs and interact with resources in a VPC
 resource "aws_iam_role_policy_attachment" "lambda-vpc-access-execution-policy-attach" {
-  role       = "${aws_iam_role.locust_job.name}"
+  role       = aws_iam_role.locust_job.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole"
 }
 
@@ -75,7 +67,7 @@ DEFINITION
 }
 
 data "aws_ecs_task_definition" "locust_chrome" {
-  task_definition = "${aws_ecs_task_definition.locust_chrome.family}"
+  task_definition = aws_ecs_task_definition.locust_chrome.family
   depends_on = [
     aws_ecs_task_definition.locust_chrome
   ]
@@ -83,21 +75,20 @@ data "aws_ecs_task_definition" "locust_chrome" {
 
 resource "aws_ecs_service" "locust_chrome" {
   name            = "locust_chrome"
-  cluster         = "${aws_ecs_cluster.locust.id}"
+  cluster         = aws_ecs_cluster.locust.id
   desired_count   = 1
   task_definition = "${aws_ecs_task_definition.locust_chrome.family}:${max("${aws_ecs_task_definition.locust_chrome.revision}", "${data.aws_ecs_task_definition.locust_chrome.revision}")}"
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets          = var.public_subnet_ids
-    security_groups  = ["${aws_security_group.locust.id}"]
-    assign_public_ip = true
+    subnets         = var.private_subnet_ids
+    security_groups = [aws_security_group.locust.id]
   }
 
   load_balancer {
-    target_group_arn = "${aws_lb_target_group.locust_chrome.id}"
+    target_group_arn = aws_lb_target_group.locust_chrome.id
     container_name   = "locust_chrome"
-    container_port   = "${var.chrome_port}"
+    container_port   = var.chrome_port
   }
 
   depends_on = [
@@ -111,7 +102,7 @@ resource "aws_ecs_service" "locust_chrome" {
 # Network
 ######
 resource "aws_security_group" "locust" {
-  vpc_id = "${var.vpc_id}"
+  vpc_id = var.vpc_id
 
   ingress {
     protocol  = "-1"
@@ -133,14 +124,14 @@ resource "aws_lb" "locust_chrome" {
   internal           = true
   load_balancer_type = "application"
   subnets            = var.private_subnet_ids
-  security_groups    = ["${aws_security_group.locust.id}"]
+  security_groups    = [aws_security_group.locust.id]
 }
 
 resource "aws_lb_target_group" "locust_chrome" {
   name        = "locust-chrome"
   port        = var.chrome_port
   protocol    = "HTTP"
-  vpc_id      = "${var.vpc_id}"
+  vpc_id      = var.vpc_id
   target_type = "ip"
   stickiness {
     type    = "lb_cookie"
@@ -149,12 +140,12 @@ resource "aws_lb_target_group" "locust_chrome" {
 }
 
 resource "aws_lb_listener" "locust_chrome" {
-  load_balancer_arn = "${aws_lb.locust_chrome.id}"
+  load_balancer_arn = aws_lb.locust_chrome.id
   port              = var.chrome_port
   protocol          = "HTTP"
 
   default_action {
-    target_group_arn = "${aws_lb_target_group.locust_chrome.id}"
+    target_group_arn = aws_lb_target_group.locust_chrome.id
     type             = "forward"
   }
 }
@@ -175,6 +166,6 @@ resource "aws_elasticache_cluster" "locust_redis" {
   parameter_group_name = "default.redis3.2"
   engine_version       = "3.2.10"
   port                 = 6379
-  subnet_group_name    = "${aws_elasticache_subnet_group.locust_redis.name}"
-  security_group_ids   = ["${aws_security_group.locust.id}"]
+  subnet_group_name    = aws_elasticache_subnet_group.locust_redis.name
+  security_group_ids   = [aws_security_group.locust.id]
 }
